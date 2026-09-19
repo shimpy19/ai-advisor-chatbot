@@ -1,0 +1,136 @@
+import json
+import logging
+
+import httpx2
+from sqlalchemy.orm import Session
+
+from app.llm.client import get_client, get_model
+from app.llm.tools import TOOL_DISPATCH, TOOL_SCHEMAS
+from app.models import Conversation, Message, SystemPrompt
+
+logger = logging.getLogger(__name__)
+
+MAX_TOOL_ITERATIONS = 5
+
+
+def _message_to_dict(m: Message) -> dict:
+    if m.role == "assistant" and m.tool_calls:
+        return {"role": "assistant", "content": m.content, "tool_calls": m.tool_calls}
+    if m.role == "tool":
+        return {"role": "tool", "tool_call_id": m.tool_call_id, "content": m.content}
+    return {"role": m.role, "content": m.content}
+
+
+def _execute_tool_call(tool_call) -> str:
+    name = tool_call.function.name
+    func = TOOL_DISPATCH.get(name)
+    if func is None:
+        logger.warning("Model requested unknown tool: %s", name)
+        return json.dumps({"error": f"Unknown tool: {name}"})
+
+    try:
+        arguments = json.loads(tool_call.function.arguments or "{}")
+    except json.JSONDecodeError:
+        logger.warning("Could not parse arguments for tool %s: %r", name, tool_call.function.arguments)
+        return json.dumps({"error": f"Invalid arguments for {name}"})
+
+    try:
+        result = func(**arguments)
+    except httpx2.HTTPError as exc:
+        # Expected: the external API is down, rate-limited, or returned an error status.
+        logger.warning("Tool %s failed calling its external API: %s", name, exc)
+        result = {"error": f"Could not complete {name}: the external service is unavailable."}
+    except Exception:
+        # Unexpected: a real bug (e.g. schema/implementation drift) — log the full
+        # traceback so it's discoverable, but still degrade gracefully for the user.
+        logger.exception("Unexpected error executing tool %s with arguments %s", name, arguments)
+        result = {"error": f"An unexpected error occurred while running {name}."}
+
+    return json.dumps(result)
+
+
+def run_chat_turn(db: Session, conversation: Conversation, user_content: str) -> Message:
+    """Persist the user's message, run the model (with tool calls as needed), persist
+    and return its final reply. Intermediate tool exchanges are only flushed, not
+    committed, so a failed or exhausted turn leaves no orphaned state behind."""
+    user_message = Message(
+        conversation_id=conversation.id, role="user", kind="text", content=user_content
+    )
+    db.add(user_message)
+    db.commit()
+
+    system_prompt = db.get(SystemPrompt, 1)
+    context_messages = [{"role": "system", "content": system_prompt.content}]
+    context_messages += [_message_to_dict(m) for m in conversation.messages]
+
+    try:
+        for _ in range(MAX_TOOL_ITERATIONS):
+            try:
+                response = get_client().chat.completions.create(
+                    model=get_model(),
+                    messages=context_messages,
+                    tools=TOOL_SCHEMAS,
+                )
+            except Exception as exc:
+                raise RuntimeError(f"OpenRouter request failed: {exc}") from exc
+
+            try:
+                choice_message = response.choices[0].message
+            except IndexError as exc:
+                raise RuntimeError("OpenRouter returned no choices in its response.") from exc
+
+            if choice_message.tool_calls:
+                tool_calls_dump = [tc.model_dump() for tc in choice_message.tool_calls]
+                db.add(
+                    Message(
+                        conversation_id=conversation.id,
+                        role="assistant",
+                        kind="tool_call_request",
+                        content=choice_message.content,
+                        tool_calls=tool_calls_dump,
+                    )
+                )
+                context_messages.append(
+                    {
+                        "role": "assistant",
+                        "content": choice_message.content,
+                        "tool_calls": tool_calls_dump,
+                    }
+                )
+
+                for tool_call in choice_message.tool_calls:
+                    result_content = _execute_tool_call(tool_call)
+                    db.add(
+                        Message(
+                            conversation_id=conversation.id,
+                            role="tool",
+                            kind="tool_result",
+                            content=result_content,
+                            tool_call_id=tool_call.id,
+                        )
+                    )
+                    context_messages.append(
+                        {"role": "tool", "tool_call_id": tool_call.id, "content": result_content}
+                    )
+
+                db.flush()
+                continue
+
+            if not choice_message.content:
+                raise RuntimeError("The advisor returned an empty response.")
+
+            assistant_message = Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                kind="text",
+                content=choice_message.content,
+            )
+            db.add(assistant_message)
+            db.commit()
+            db.refresh(assistant_message)
+            return assistant_message
+
+        raise RuntimeError("The advisor made too many tool calls without producing a final answer.")
+    except RuntimeError:
+        db.rollback()
+        raise

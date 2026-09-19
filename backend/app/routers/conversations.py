@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Conversation, TripPlan
+from app.routers.helpers import get_conversation_or_404
 from app.schemas import (
     ConversationCreate,
     ConversationDetail,
@@ -13,13 +14,6 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
-
-
-def _get_conversation_or_404(db: Session, conversation_id: str) -> Conversation:
-    conversation = db.get(Conversation, conversation_id)
-    if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    return conversation
 
 
 @router.post("", response_model=ConversationDetail, status_code=201)
@@ -42,14 +36,14 @@ def list_conversations(db: Session = Depends(get_db)) -> list[Conversation]:
 
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 def get_conversation(conversation_id: str, db: Session = Depends(get_db)) -> Conversation:
-    return _get_conversation_or_404(db, conversation_id)
+    return get_conversation_or_404(db, conversation_id)
 
 
 @router.patch("/{conversation_id}", response_model=ConversationDetail)
 def rename_conversation(
     conversation_id: str, payload: ConversationUpdate, db: Session = Depends(get_db)
 ) -> Conversation:
-    conversation = _get_conversation_or_404(db, conversation_id)
+    conversation = get_conversation_or_404(db, conversation_id)
     conversation.title = payload.title
     db.commit()
     db.refresh(conversation)
@@ -58,7 +52,7 @@ def rename_conversation(
 
 @router.delete("/{conversation_id}", status_code=204)
 def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> None:
-    conversation = _get_conversation_or_404(db, conversation_id)
+    conversation = get_conversation_or_404(db, conversation_id)
     db.delete(conversation)
     db.commit()
 
@@ -67,7 +61,7 @@ def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> 
 def update_trip_plan(
     conversation_id: str, payload: TripPlanUpdate, db: Session = Depends(get_db)
 ) -> TripPlan:
-    conversation = _get_conversation_or_404(db, conversation_id)
+    conversation = get_conversation_or_404(db, conversation_id)
 
     trip_plan = conversation.trip_plan
     if trip_plan is None:

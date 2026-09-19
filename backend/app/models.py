@@ -42,7 +42,16 @@ class Message(Base):
     )
     # "user" | "assistant" | "tool"
     role: Mapped[str] = mapped_column(Text)
-    content: Mapped[str] = mapped_column(Text)
+    # "text" (normal chat bubble) | "tool_call_request" | "tool_result" — lets API
+    # consumers filter out internal tool-calling traffic without inferring it from
+    # role/content.
+    kind: Mapped[str] = mapped_column(Text, default="text")
+    # Nullable: an assistant message that only requests tool calls has no text content.
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Set on assistant messages that request tool calls: [{"id", "type", "function": {"name", "arguments"}}, ...]
+    tool_calls: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+    # Set on role="tool" messages: matches the id of the tool_calls entry this is a result for.
+    tool_call_id: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")

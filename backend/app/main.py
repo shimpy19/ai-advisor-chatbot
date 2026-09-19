@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,8 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import models  # noqa: F401 — ensures models are registered on Base.metadata
 from app.database import Base, SessionLocal, engine
-from app.routers import conversations, system_prompt
+from app.routers import conversations, messages, system_prompt
 from app.seed import seed_defaults
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 @asynccontextmanager
@@ -32,6 +35,7 @@ app.add_middleware(
 
 
 app.include_router(conversations.router)
+app.include_router(messages.router)
 app.include_router(system_prompt.router)
 
 

@@ -9,7 +9,8 @@ class MessageOut(BaseModel):
 
     id: str
     role: str
-    content: str
+    kind: str
+    content: str | None
     created_at: datetime
 
 
@@ -54,6 +55,15 @@ class ConversationCreate(BaseModel):
 
 class ConversationUpdate(BaseModel):
     title: str
+
+
+class MessageCreate(BaseModel):
+    content: str
+
+
+class ChatTurnResponse(BaseModel):
+    message: MessageOut
+    trip_plan: TripPlanOut | None
 
 
 class SystemPromptOut(BaseModel):

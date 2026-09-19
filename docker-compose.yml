@@ -8,6 +8,9 @@ services:
       - sqlite_data:/app/data
     environment:
       DATABASE_URL: sqlite:////app/data/app.db
+    env_file:
+      - path: ./backend/.env
+        required: false
 
 volumes:
   sqlite_data:
