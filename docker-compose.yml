@@ -1,0 +1,13 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - sqlite_data:/app/data
+    environment:
+      DATABASE_URL: sqlite:////app/data/app.db
+
+volumes:
+  sqlite_data:

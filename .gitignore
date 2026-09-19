@@ -5,6 +5,9 @@
 .DS_Store
 Thumbs.db
 
+# IDE
+.idea/
+
 # Common local environments (keep or extend to fit your stack)
 venv/
 .venv/
