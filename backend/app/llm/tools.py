@@ -2,6 +2,7 @@ from app.llm.tool_impls import (
     get_exchange_rate,
     get_public_holidays,
     get_weather,
+    update_traveler_profile_tool,
     update_trip_plan_tool,
 )
 
@@ -127,6 +128,44 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_traveler_profile",
+            "description": (
+                "Record or update durable facts about the traveler that should be "
+                "remembered across ALL their conversations, not just this trip — e.g. "
+                "home airport, travel companions, dietary needs, budget preference, "
+                "passport nationality. Only store facts that are durable and "
+                "materially useful for future travel planning; skip trivial or "
+                "one-off details. Before adding a new key, check the traveler "
+                "profile shown in context — if a similar concept already exists "
+                "under a different key (e.g. you're about to add 'food_preference' "
+                "but 'diet' already captures it), update the EXISTING key instead "
+                "of creating a near-duplicate. Use short, consistent keys. Use "
+                "`remove_keys` to delete a fact that's no longer true."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "facts": {
+                        "type": "object",
+                        "description": (
+                            "Facts to add or update, as key-value pairs. Existing "
+                            "keys not mentioned are left untouched."
+                        ),
+                        "additionalProperties": {"type": "string"},
+                    },
+                    "remove_keys": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Keys to remove from the traveler's profile.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 TOOL_DISPATCH = {
@@ -134,11 +173,12 @@ TOOL_DISPATCH = {
     "get_weather": get_weather,
     "get_public_holidays": get_public_holidays,
     "update_trip_plan": update_trip_plan_tool,
+    "update_traveler_profile": update_traveler_profile_tool,
 }
 
 # Tools in this set need db/conversation bound in per-request (via functools.partial)
 # rather than being pure functions of only the model-supplied arguments.
-CONTEXT_AWARE_TOOLS = {"update_trip_plan"}
+CONTEXT_AWARE_TOOLS = {"update_trip_plan", "update_traveler_profile"}
 
 _schema_names = {schema["function"]["name"] for schema in TOOL_SCHEMAS}
 _dispatch_names = set(TOOL_DISPATCH.keys())

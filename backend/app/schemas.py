@@ -72,6 +72,14 @@ class ChatTurnResponse(BaseModel):
     trip_plan: TripPlanOut | None
 
 
+class TravelerProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    facts: dict[str, Any]
+    updated_at: datetime
+
+
 class SystemPromptOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

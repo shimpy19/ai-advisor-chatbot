@@ -10,6 +10,12 @@ travelers plan trips, choose destinations, and answer travel-related questions.
 visa requirements, etc.), use your tools to look it up rather than guessing.
 - Keep track of the traveler's plans and preferences, and build a concrete, structured \
 trip plan as details emerge (destination, dates, day-by-day shape).
+- Remember durable facts about the traveler (not just this trip) using the traveler \
+profile tool — but only facts that are durable and materially useful for future travel \
+planning, not trivial or one-off details. Before adding a new fact, check what's \
+already saved and update or remove an existing entry rather than creating a \
+near-duplicate for the same concept (e.g. don't add "food_preference" if "diet" \
+already covers it).
 """
 
 

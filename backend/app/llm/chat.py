@@ -5,9 +5,11 @@ import logging
 import httpx2
 from sqlalchemy.orm import Session
 
+from app.digest import format_digest_compact, get_recent_trip_digest
 from app.llm.client import get_client, get_model
 from app.llm.tools import CONTEXT_AWARE_TOOLS, TOOL_DISPATCH, TOOL_SCHEMAS
-from app.models import Conversation, Message, SystemPrompt
+from app.models import Conversation, Message, SystemPrompt, TravelerProfile
+from app.traveler_profile import format_traveler_profile_compact
 from app.trip_plan import format_trip_plan_compact
 
 logger = logging.getLogger(__name__)
@@ -77,14 +79,24 @@ def run_chat_turn(db: Session, conversation: Conversation, user_content: str) ->
     # Placed last (not merged into the opening system message) so it gets stronger
     # recency weighting than earlier turns — otherwise the model can trust its own
     # prior reply over a fresher state, e.g. after the user edits the plan directly.
+    traveler_profile = db.get(TravelerProfile, 1)
+    digest_rows = get_recent_trip_digest(db, conversation)
+    state_block = "\n\n".join(
+        [
+            format_traveler_profile_compact(traveler_profile),
+            format_digest_compact(digest_rows),
+            format_trip_plan_compact(conversation.trip_plan),
+        ]
+    )
     context_messages.append(
         {
             "role": "system",
             "content": (
-                "IMPORTANT: the following is the CURRENT, authoritative state of the "
-                "trip plan. It may have just been edited directly by the traveler — "
-                "treat it as more up to date than anything said earlier in this "
-                "conversation.\n\n" + format_trip_plan_compact(conversation.trip_plan)
+                "IMPORTANT: the following is CURRENT, authoritative information — the "
+                "traveler's saved profile, other trips they've discussed elsewhere, "
+                "and this conversation's trip plan. It may have changed since earlier "
+                "in this conversation (e.g. via direct edits) — treat it as more up "
+                "to date than anything said earlier.\n\n" + state_block
             ),
         }
     )

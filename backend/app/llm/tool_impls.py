@@ -2,7 +2,8 @@ import httpx2
 from sqlalchemy.orm import Session
 
 from app.models import Conversation
-from app.schemas import TripPlanOut
+from app.schemas import TravelerProfileOut, TripPlanOut
+from app.traveler_profile import apply_traveler_profile_update
 from app.trip_plan import apply_trip_plan_update
 
 FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
@@ -134,3 +135,17 @@ def update_trip_plan_tool(db: Session, conversation: Conversation, **fields) -> 
 
     db.flush()  # populate DB-side defaults (id, updated_at, ...) without committing
     return TripPlanOut.model_validate(trip_plan).model_dump(mode="json")
+
+
+def update_traveler_profile_tool(db: Session, conversation: Conversation, **fields) -> dict:
+    """Bound per-request with db/conversation via functools.partial, same as
+    update_trip_plan_tool — `conversation` is unused here since the traveler profile
+    is a global singleton, not conversation-scoped, but keeping the same (db,
+    conversation) shape avoids a second dispatch-binding mechanism for one tool."""
+    try:
+        profile = apply_traveler_profile_update(db, fields)
+    except ValueError as exc:
+        return {"error": str(exc)}
+
+    db.flush()
+    return TravelerProfileOut.model_validate(profile).model_dump(mode="json")
