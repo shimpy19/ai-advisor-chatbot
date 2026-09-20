@@ -27,12 +27,18 @@ class TripPlanOut(BaseModel):
 
 
 class TripPlanUpdate(BaseModel):
-    """All fields optional — only the ones present in the request body are applied."""
+    """All fields optional — only the ones present in the request body are applied.
+    `days` entries are merged by day number (added or updated) rather than replacing
+    the whole itinerary; day numbers refer to the CURRENT numbering and cannot also
+    appear in `remove_days` in the same request. `remove_days` deletes specific days
+    and renumbers the remaining ones to close any gap. Sending `days` as an empty list
+    with no `remove_days` clears the entire itinerary."""
 
     destination: str | None = None
     start_date: str | None = None
     end_date: str | None = None
     days: list[dict[str, Any]] | None = None
+    remove_days: list[int] | None = None
 
 
 class ConversationSummary(BaseModel):

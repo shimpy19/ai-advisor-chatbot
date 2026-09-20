@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,6 +12,7 @@ from app.schemas import (
     TripPlanOut,
     TripPlanUpdate,
 )
+from app.trip_plan import apply_trip_plan_update
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -62,14 +63,10 @@ def update_trip_plan(
     conversation_id: str, payload: TripPlanUpdate, db: Session = Depends(get_db)
 ) -> TripPlan:
     conversation = get_conversation_or_404(db, conversation_id)
-
-    trip_plan = conversation.trip_plan
-    if trip_plan is None:
-        trip_plan = TripPlan(conversation_id=conversation.id)
-        db.add(trip_plan)
-
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(trip_plan, field, value)
+    try:
+        trip_plan = apply_trip_plan_update(db, conversation, payload.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     db.commit()
     db.refresh(trip_plan)

@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 
@@ -5,12 +6,23 @@ import httpx2
 from sqlalchemy.orm import Session
 
 from app.llm.client import get_client, get_model
-from app.llm.tools import TOOL_DISPATCH, TOOL_SCHEMAS
+from app.llm.tools import CONTEXT_AWARE_TOOLS, TOOL_DISPATCH, TOOL_SCHEMAS
 from app.models import Conversation, Message, SystemPrompt
+from app.trip_plan import format_trip_plan_compact
 
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_ITERATIONS = 5
+
+
+def _build_dispatch(db: Session, conversation: Conversation) -> dict:
+    """A per-request copy of TOOL_DISPATCH with context-aware tools (e.g.
+    update_trip_plan) bound to this request's db/conversation — the model never
+    supplies those itself."""
+    dispatch = dict(TOOL_DISPATCH)
+    for name in CONTEXT_AWARE_TOOLS:
+        dispatch[name] = functools.partial(dispatch[name], db, conversation)
+    return dispatch
 
 
 def _message_to_dict(m: Message) -> dict:
@@ -21,9 +33,9 @@ def _message_to_dict(m: Message) -> dict:
     return {"role": m.role, "content": m.content}
 
 
-def _execute_tool_call(tool_call) -> str:
+def _execute_tool_call(tool_call, dispatch: dict) -> str:
     name = tool_call.function.name
-    func = TOOL_DISPATCH.get(name)
+    func = dispatch.get(name)
     if func is None:
         logger.warning("Model requested unknown tool: %s", name)
         return json.dumps({"error": f"Unknown tool: {name}"})
@@ -62,6 +74,22 @@ def run_chat_turn(db: Session, conversation: Conversation, user_content: str) ->
     system_prompt = db.get(SystemPrompt, 1)
     context_messages = [{"role": "system", "content": system_prompt.content}]
     context_messages += [_message_to_dict(m) for m in conversation.messages]
+    # Placed last (not merged into the opening system message) so it gets stronger
+    # recency weighting than earlier turns — otherwise the model can trust its own
+    # prior reply over a fresher state, e.g. after the user edits the plan directly.
+    context_messages.append(
+        {
+            "role": "system",
+            "content": (
+                "IMPORTANT: the following is the CURRENT, authoritative state of the "
+                "trip plan. It may have just been edited directly by the traveler — "
+                "treat it as more up to date than anything said earlier in this "
+                "conversation.\n\n" + format_trip_plan_compact(conversation.trip_plan)
+            ),
+        }
+    )
+
+    dispatch = _build_dispatch(db, conversation)
 
     try:
         for _ in range(MAX_TOOL_ITERATIONS):
@@ -99,7 +127,7 @@ def run_chat_turn(db: Session, conversation: Conversation, user_content: str) ->
                 )
 
                 for tool_call in choice_message.tool_calls:
-                    result_content = _execute_tool_call(tool_call)
+                    result_content = _execute_tool_call(tool_call, dispatch)
                     db.add(
                         Message(
                             conversation_id=conversation.id,

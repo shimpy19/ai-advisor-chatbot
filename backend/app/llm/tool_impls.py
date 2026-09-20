@@ -1,4 +1,9 @@
 import httpx2
+from sqlalchemy.orm import Session
+
+from app.models import Conversation
+from app.schemas import TripPlanOut
+from app.trip_plan import apply_trip_plan_update
 
 FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -117,3 +122,15 @@ def get_public_holidays(country_code: str, year: int) -> dict:
         "year": year,
         "holidays": [{"date": h["date"], "name": h["localName"]} for h in holidays],
     }
+
+
+def update_trip_plan_tool(db: Session, conversation: Conversation, **fields) -> dict:
+    """Bound per-request with db/conversation via functools.partial — the model only
+    ever supplies destination/start_date/end_date/days/remove_days."""
+    try:
+        trip_plan = apply_trip_plan_update(db, conversation, fields)
+    except ValueError as exc:
+        return {"error": str(exc)}
+
+    db.flush()  # populate DB-side defaults (id, updated_at, ...) without committing
+    return TripPlanOut.model_validate(trip_plan).model_dump(mode="json")
