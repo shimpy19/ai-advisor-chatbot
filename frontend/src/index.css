@@ -4,6 +4,16 @@
 @theme {
   --font-display: "Inter", system-ui, sans-serif;
   --font-sans: "Manrope", system-ui, sans-serif;
+
+  --color-accent: #2563eb;
+  --color-accent-light: #e8f0fe;
+  --color-ink: #0f1729;
+  --color-ink-soft: #45526b;
+  --color-muted: #64748b;
+  --color-faint: #94a3b8;
+  --color-surface: #fbfcff;
+  --color-surface-soft: #f4f7fc;
+  --color-line: #e2e8f5;
 }
 
 body {

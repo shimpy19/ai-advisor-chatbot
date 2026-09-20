@@ -1,7 +1,17 @@
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timezone
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PlainSerializer
+
+# SQLite doesn't actually preserve tzinfo across a round-trip despite
+# DateTime(timezone=True), so values read back from the DB are naive even
+# though every timestamp in this app is always UTC (see models.py's _now()).
+# Reattach UTC before serializing, so clients get an unambiguous offset
+# instead of silently misinterpreting it as local time.
+UTCDateTime = Annotated[
+    datetime,
+    PlainSerializer(lambda dt: dt.replace(tzinfo=timezone.utc), return_type=datetime),
+]
 
 
 class MessageOut(BaseModel):
@@ -11,7 +21,7 @@ class MessageOut(BaseModel):
     role: str
     kind: str
     content: str | None
-    created_at: datetime
+    created_at: UTCDateTime
 
 
 class TripPlanOut(BaseModel):
@@ -23,7 +33,7 @@ class TripPlanOut(BaseModel):
     start_date: str | None
     end_date: str | None
     days: list[dict[str, Any]]
-    updated_at: datetime
+    updated_at: UTCDateTime
 
 
 class TripPlanUpdate(BaseModel):
@@ -46,8 +56,8 @@ class ConversationSummary(BaseModel):
 
     id: str
     title: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
 
 
 class ConversationDetail(ConversationSummary):
@@ -77,14 +87,14 @@ class TravelerProfileOut(BaseModel):
 
     id: int
     facts: dict[str, Any]
-    updated_at: datetime
+    updated_at: UTCDateTime
 
 
 class SystemPromptOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     content: str
-    updated_at: datetime
+    updated_at: UTCDateTime
 
 
 class SystemPromptUpdate(BaseModel):
