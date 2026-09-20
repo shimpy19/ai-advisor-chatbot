@@ -57,7 +57,10 @@ def _merge_days(
     by_day = {d["day"]: dict(d) for d in existing_days}
 
     for entry in upserts or []:
-        by_day[entry["day"]] = dict(entry)
+        # Merge onto whatever's already stored for this day, rather than fully
+        # replacing it — callers (the LLM tool, the UI) may legitimately send just
+        # the field(s) that changed (e.g. `title` only) without repeating `activities`.
+        by_day[entry["day"]] = {**by_day.get(entry["day"], {}), **entry}
 
     if removals:
         for day_num in removals:

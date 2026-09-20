@@ -40,3 +40,11 @@ export interface ChatTurnResponse {
   message: MessageOut;
   trip_plan: TripPlanOut | null;
 }
+
+export interface TripPlanUpdate {
+  destination?: string;
+  start_date?: string;
+  end_date?: string;
+  days?: TripDay[];
+  remove_days?: number[];
+}

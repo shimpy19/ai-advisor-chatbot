@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ChatRail } from "../components/ChatRail";
 import { Sidebar } from "../components/Sidebar";
-import { TripPlanPlaceholder } from "../components/TripPlanPlaceholder";
+import { TripPlanPanel } from "../components/TripPlanPanel";
 import { getConversation } from "../lib/api";
 
 export function ConversationPage() {
@@ -36,7 +36,7 @@ export function ConversationPage() {
       {conversation && (
         <>
           <ChatRail conversation={conversation} />
-          <TripPlanPlaceholder tripPlan={conversation.trip_plan} />
+          <TripPlanPanel conversationId={conversation.id} tripPlan={conversation.trip_plan} />
         </>
       )}
     </div>

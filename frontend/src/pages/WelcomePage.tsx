@@ -47,8 +47,7 @@ export function WelcomePage() {
             Where should we plan your next trip?
           </div>
           <div className="mb-7 text-[15px] leading-relaxed text-muted">
-            Tell me a destination, a rough date, or just a feeling — I'll ask what I need, check
-            anything that needs to be current, and build the plan with you as we talk.
+            A bit sleepy...wake me up with a good trip idea!
           </div>
 
           <MessageComposer
@@ -73,7 +72,7 @@ export function WelcomePage() {
                 type="button"
                 disabled={startConversationMutation.isPending}
                 onClick={() => startConversationMutation.mutate(s)}
-                className="rounded-full border border-line px-[15px] py-2 text-[13px] text-ink-soft disabled:opacity-50"
+                className="cursor-pointer rounded-full border border-line px-[15px] py-2 text-[13px] text-ink-soft transition-colors hover:border-accent hover:bg-accent-light hover:text-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-soft"
               >
                 {s}
               </button>

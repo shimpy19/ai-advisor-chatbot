@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { deleteConversation, listConversations } from "../lib/api";
+import { deleteConversation, listConversations, renameConversation } from "../lib/api";
 import { formatRelativeTime } from "../lib/format";
+import { EditableText } from "./EditableText";
 import { KoalaLogo } from "./KoalaLogo";
 
 export function Sidebar() {
   const { id: activeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const { data: conversations, error } = useQuery({
     queryKey: ["conversations"],
@@ -22,12 +25,25 @@ export function Sidebar() {
     },
   });
 
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) => renameConversation(id, title),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+
   function handleDelete(e: React.MouseEvent, id: string, title: string) {
     e.preventDefault();
     e.stopPropagation();
     if (window.confirm(`Delete "${title}"? This can't be undone.`)) {
       deleteMutation.mutate(id);
     }
+  }
+
+  function startRename(e: React.MouseEvent, id: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setRenamingId(id);
   }
 
   return (
@@ -43,7 +59,7 @@ export function Sidebar() {
       <div className="px-4 pb-3.5">
         <Link
           to="/"
-          className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-accent px-3.5 py-2.5 text-sm font-bold text-white"
+          className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-accent px-3.5 py-2.5 text-sm font-bold text-white transition-all duration-150 hover:bg-[#1d4ed8] hover:shadow-md active:scale-[0.98]"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -76,24 +92,49 @@ export function Sidebar() {
               c.id === activeId ? "bg-accent-light" : "hover:bg-accent-light/50"
             }`}
           >
-            <div className="min-w-0">
-              <div className="truncate text-[13.5px] font-semibold text-[#17223B]">{c.title}</div>
+            <div className="min-w-0 flex-1">
+              <EditableText
+                value={c.title}
+                editing={renamingId === c.id}
+                onEditingChange={(editing) => setRenamingId(editing ? c.id : null)}
+                onSave={(title) => {
+                  const trimmed = title.trim();
+                  if (trimmed && trimmed !== c.title) {
+                    renameMutation.mutate({ id: c.id, title: trimmed });
+                  }
+                }}
+                className="block truncate text-[13.5px] font-semibold text-[#17223B]"
+                inputClassName="w-full rounded-md border border-line bg-white px-1.5 py-0.5 text-[13.5px] font-semibold text-[#17223B] outline-none"
+              />
               <div className="mt-0.5 text-[11.5px] text-[#8A97AE]">{formatRelativeTime(c.updated_at)}</div>
             </div>
-            <button
-              type="button"
-              aria-label={`Delete ${c.title}`}
-              onClick={(e) => handleDelete(e, c.id, c.title)}
-              className="shrink-0 rounded-md p-1 text-[#9AA6BD] opacity-0 hover:bg-white group-hover:opacity-100"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
-            </button>
+            <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100">
+              <button
+                type="button"
+                aria-label={`Rename ${c.title}`}
+                onClick={(e) => startRename(e, c.id)}
+                className="rounded-md p-1 text-[#9AA6BD] hover:bg-white"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${c.title}`}
+                onClick={(e) => handleDelete(e, c.id, c.title)}
+                className="rounded-md p-1 text-[#9AA6BD] hover:bg-white"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+            </div>
           </Link>
         ))}
       </div>

@@ -1,4 +1,10 @@
-import type { ChatTurnResponse, ConversationDetail, ConversationSummary } from "./types";
+import type {
+  ChatTurnResponse,
+  ConversationDetail,
+  ConversationSummary,
+  TripPlanOut,
+  TripPlanUpdate,
+} from "./types";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -50,5 +56,19 @@ export async function sendMessage(id: string, content: string): Promise<ChatTurn
   return apiFetch(`/conversations/${id}/messages`, {
     method: "POST",
     body: JSON.stringify({ content }),
+  });
+}
+
+export async function renameConversation(id: string, title: string): Promise<ConversationDetail> {
+  return apiFetch(`/conversations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export async function updateTripPlan(id: string, update: TripPlanUpdate): Promise<TripPlanOut> {
+  return apiFetch(`/conversations/${id}/trip-plan`, {
+    method: "PATCH",
+    body: JSON.stringify(update),
   });
 }
