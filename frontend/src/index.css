@@ -14,6 +14,20 @@
   --color-surface: #fbfcff;
   --color-surface-soft: #f4f7fc;
   --color-line: #e2e8f5;
+
+  --animate-float: float 2.2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
 }
 
 body {

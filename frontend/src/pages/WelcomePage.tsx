@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { KoalaLogo } from "../components/KoalaLogo";
 import { MessageComposer } from "../components/MessageComposer";
 import { Sidebar } from "../components/Sidebar";
+import { SplashScreen } from "../components/SplashScreen";
 import { createConversation, sendMessage } from "../lib/api";
 
 const SUGGESTIONS = [
@@ -14,6 +16,7 @@ const SUGGESTIONS = [
 export function WelcomePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [showSplash, setShowSplash] = useState(true);
 
   const startConversationMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -36,6 +39,7 @@ export function WelcomePage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       <Sidebar />
 
       <div className="flex flex-1 items-center justify-center bg-surface p-10">
