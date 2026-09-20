@@ -48,3 +48,8 @@ export interface TripPlanUpdate {
   days?: TripDay[];
   remove_days?: number[];
 }
+
+export interface SystemPromptOut {
+  content: string;
+  updated_at: string;
+}

@@ -1,10 +1,12 @@
 import functools
 import json
 import logging
+from datetime import datetime, timezone
 
 import httpx2
 from sqlalchemy.orm import Session
 
+from app.core_directive import CORE_DIRECTIVE
 from app.digest import format_digest_compact, get_recent_trip_digest
 from app.llm.client import get_client, get_model
 from app.llm.tools import CONTEXT_AWARE_TOOLS, TOOL_DISPATCH, TOOL_SCHEMAS
@@ -73,16 +75,29 @@ def run_chat_turn(db: Session, conversation: Conversation, user_content: str) ->
     db.add(user_message)
     db.commit()
 
+    # The traveler's custom instructions (tone, style, extra rules — see the settings
+    # page) come first and are optional; CORE_DIRECTIVE always follows, both here and
+    # after the conversation history, so it can't be diluted by a long conversation
+    # or overridden by whatever the custom prompt says.
     system_prompt = db.get(SystemPrompt, 1)
-    context_messages = [{"role": "system", "content": system_prompt.content}]
+    context_messages = []
+    if system_prompt.content.strip():
+        context_messages.append({"role": "system", "content": system_prompt.content})
     context_messages += [_message_to_dict(m) for m in conversation.messages]
+    context_messages.append({"role": "system", "content": CORE_DIRECTIVE})
     # Placed last (not merged into the opening system message) so it gets stronger
     # recency weighting than earlier turns — otherwise the model can trust its own
     # prior reply over a fresher state, e.g. after the user edits the plan directly.
     traveler_profile = db.get(TravelerProfile, 1)
     digest_rows = get_recent_trip_digest(db, conversation)
+    # The model has no built-in notion of "now" — without this, it guesses at a
+    # plausible-looking date (often landing near its training cutoff), so any
+    # relative date the traveler gives ("this Monday", "next week", "in 3 days")
+    # resolves to the wrong year entirely.
+    today = datetime.now(timezone.utc).date()
     state_block = "\n\n".join(
         [
+            f"Today's date is {today.isoformat()} ({today.strftime('%A')}).",
             format_traveler_profile_compact(traveler_profile),
             format_digest_compact(digest_rows),
             format_trip_plan_compact(conversation.trip_plan),

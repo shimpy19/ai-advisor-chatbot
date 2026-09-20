@@ -52,7 +52,7 @@ export function Sidebar() {
         <KoalaLogo />
         <div>
           <div className="font-display text-[17px] font-bold leading-tight text-ink">Koalla</div>
-          <div className="text-[11px] tracking-wide text-faint">AI travel advisor</div>
+          <div className="text-[11px] tracking-wide text-faint">Sleepy travel advisor</div>
         </div>
       </div>
 

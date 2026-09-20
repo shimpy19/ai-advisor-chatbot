@@ -2,6 +2,7 @@ import type {
   ChatTurnResponse,
   ConversationDetail,
   ConversationSummary,
+  SystemPromptOut,
   TripPlanOut,
   TripPlanUpdate,
 } from "./types";
@@ -70,5 +71,16 @@ export async function updateTripPlan(id: string, update: TripPlanUpdate): Promis
   return apiFetch(`/conversations/${id}/trip-plan`, {
     method: "PATCH",
     body: JSON.stringify(update),
+  });
+}
+
+export async function getSystemPrompt(): Promise<SystemPromptOut> {
+  return apiFetch("/system-prompt");
+}
+
+export async function updateSystemPrompt(content: string): Promise<SystemPromptOut> {
+  return apiFetch("/system-prompt", {
+    method: "PUT",
+    body: JSON.stringify({ content }),
   });
 }

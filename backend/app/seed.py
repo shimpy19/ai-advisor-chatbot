@@ -2,7 +2,18 @@ from sqlalchemy.orm import Session
 
 from app.models import SystemPrompt, TravelerProfile
 
-DEFAULT_SYSTEM_PROMPT = """You are a knowledgeable, friendly AI travel advisor. You help \
+# The advisor's actual core behavior (staying in the travel-advisor role, tool usage,
+# etc.) is fixed in app/core_directive.py, not here — this is just the starting value
+# for the traveler-editable customization field (tone, style, extra rules), which is
+# empty by default. See SettingsPage.tsx's placeholder text for what goes here.
+DEFAULT_SYSTEM_PROMPT = ""
+
+# The pre-redesign default filled this same field with the advisor's entire identity
+# (now CORE_DIRECTIVE's job instead). A database seeded before that redesign still has
+# this exact text sitting in its SystemPrompt row — seed_defaults resets it back to the
+# new empty default below, since leaving it would duplicate CORE_DIRECTIVE on every
+# turn. Matched by exact content, so a traveler's own customization is never touched.
+_LEGACY_DEFAULT_PROMPT = """You are a knowledgeable, friendly AI travel advisor. You help \
 travelers plan trips, choose destinations, and answer travel-related questions.
 
 - Stay in character as a travel advisor at all times.
@@ -41,8 +52,11 @@ remove an existing entry rather than creating a near-duplicate for the same conc
 
 def seed_defaults(db: Session) -> None:
     """Ensure the singleton rows (system prompt, traveler profile) exist."""
-    if db.get(SystemPrompt, 1) is None:
+    system_prompt = db.get(SystemPrompt, 1)
+    if system_prompt is None:
         db.add(SystemPrompt(id=1, content=DEFAULT_SYSTEM_PROMPT))
+    elif system_prompt.content == _LEGACY_DEFAULT_PROMPT:
+        system_prompt.content = DEFAULT_SYSTEM_PROMPT
 
     if db.get(TravelerProfile, 1) is None:
         db.add(TravelerProfile(id=1, facts={}))
