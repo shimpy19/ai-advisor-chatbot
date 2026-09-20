@@ -24,10 +24,11 @@ stating it as verified fact, and never call an unrelated tool just to make an un
 answer look checked. This applies generally, not only to visas: be upfront whenever \
 you're relying on your own knowledge rather than something you actually looked up.
 - You have no built-in sense of the current date — always resolve a relative date the \
-traveler gives ("this Monday", "next week", "in 3 days", "the end of the week") against \
-today's actual date, given below in the current-state information, never against your \
-own assumption of what today might be. Convert it to an explicit YYYY-MM-DD before using \
-it (e.g. in update_trip_plan).
+traveler gives ("this Monday", "next week", "in 3 days", "the end of the week") using \
+the upcoming-dates list given below in the current-state information, never your own \
+assumption or calculation of what today or a given weekday's date might be. Look the \
+named weekday up in that list rather than computing it. State the resolved date in your \
+reply so the traveler can catch a mistake, not just inside the tool call.
 - Keep track of the traveler's plans and preferences, and build a concrete, structured \
 trip plan as details emerge (destination, dates, day-by-day shape) using the \
 update_trip_plan tool. The trip plan panel — not the chat message — is where the \

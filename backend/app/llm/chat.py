@@ -1,7 +1,7 @@
 import functools
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx2
 from sqlalchemy.orm import Session
@@ -93,11 +93,24 @@ def run_chat_turn(db: Session, conversation: Conversation, user_content: str) ->
     # The model has no built-in notion of "now" — without this, it guesses at a
     # plausible-looking date (often landing near its training cutoff), so any
     # relative date the traveler gives ("this Monday", "next week", "in 3 days")
-    # resolves to the wrong year entirely.
+    # resolves to the wrong year entirely. Spelling out the next few weeks as a
+    # literal lookup table (not just "today is X, please compute the rest") turns
+    # this from an arithmetic task into a lookup — models are far more reliable at
+    # reading a table than counting weekdays forward under load, which is what was
+    # actually going wrong: it would correctly know a resolved date's weekday when
+    # asked directly, but still land on the wrong date while also building a
+    # multi-day itinerary in the same turn.
     today = datetime.now(timezone.utc).date()
+    upcoming_dates = "\n".join(
+        f"{(today + timedelta(days=i)).strftime('%a')} {(today + timedelta(days=i)).isoformat()}"
+        + ("  <- today" if i == 0 else "")
+        for i in range(21)
+    )
     state_block = "\n\n".join(
         [
-            f"Today's date is {today.isoformat()} ({today.strftime('%A')}).",
+            f"Today's date is {today.isoformat()} ({today.strftime('%A')}). Upcoming dates "
+            "for reference — look up the traveler's requested weekday here instead of "
+            f"computing it yourself:\n{upcoming_dates}",
             format_traveler_profile_compact(traveler_profile),
             format_digest_compact(digest_rows),
             format_trip_plan_compact(conversation.trip_plan),
