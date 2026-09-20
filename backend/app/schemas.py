@@ -60,9 +60,21 @@ class ConversationSummary(BaseModel):
     updated_at: UTCDateTime
 
 
+class DuplicateTripOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    conversation_id: str
+    title: str
+    destination: str
+    start_date: str | None
+    end_date: str | None
+    updated_at: UTCDateTime
+
+
 class ConversationDetail(ConversationSummary):
     messages: list[MessageOut]
     trip_plan: TripPlanOut | None
+    duplicate_trip: DuplicateTripOut | None = None
 
 
 class ConversationCreate(BaseModel):

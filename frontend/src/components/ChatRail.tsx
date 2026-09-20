@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { sendMessage } from "../lib/api";
 import type { ConversationDetail } from "../lib/types";
+import { DuplicateTripNotice } from "./DuplicateTripNotice";
 import { MessageBubble } from "./MessageBubble";
 import { MessageComposer } from "./MessageComposer";
 
@@ -96,7 +97,14 @@ export function ChatRail({ conversation }: ChatRailProps) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 border-t border-line p-3">
+      <div className="relative shrink-0 border-t border-line p-3">
+        {conversation.duplicate_trip && (
+          <DuplicateTripNotice
+            key={conversation.duplicate_trip.conversation_id}
+            conversationId={conversation.id}
+            duplicate={conversation.duplicate_trip}
+          />
+        )}
         <MessageComposer
           onSend={(content) => sendMutation.mutate(content)}
           disabled={sendMutation.isPending}

@@ -31,9 +31,19 @@ export interface ConversationSummary {
   updated_at: string;
 }
 
+export interface DuplicateTripOut {
+  conversation_id: string;
+  title: string;
+  destination: string;
+  start_date: string | null;
+  end_date: string | null;
+  updated_at: string;
+}
+
 export interface ConversationDetail extends ConversationSummary {
   messages: MessageOut[];
   trip_plan: TripPlanOut | null;
+  duplicate_trip: DuplicateTripOut | null;
 }
 
 export interface ChatTurnResponse {

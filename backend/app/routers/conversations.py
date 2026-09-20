@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.digest import find_duplicate_trip
 from app.models import Conversation, TripPlan
 from app.routers.helpers import get_conversation_or_404
 from app.schemas import (
@@ -37,7 +38,11 @@ def list_conversations(db: Session = Depends(get_db)) -> list[Conversation]:
 
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 def get_conversation(conversation_id: str, db: Session = Depends(get_db)) -> Conversation:
-    return get_conversation_or_404(db, conversation_id)
+    conversation = get_conversation_or_404(db, conversation_id)
+    # Attached dynamically rather than stored — always computed fresh, since it depends
+    # on every OTHER conversation's current state, not just this one's.
+    conversation.duplicate_trip = find_duplicate_trip(db, conversation)
+    return conversation
 
 
 @router.patch("/{conversation_id}", response_model=ConversationDetail)
